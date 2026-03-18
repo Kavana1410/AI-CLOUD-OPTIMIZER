@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: ai-cloud-optimizer-api
+    runtime: python
+    buildCommand: pip install -r requirements-backend.txt
+    startCommand: uvicorn api.app:app --host 0.0.0.0 --port $PORT
