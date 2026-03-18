@@ -6,11 +6,19 @@ from strategies.static import StaticStrategy
 from strategies.threshold import ThresholdStrategy
 from strategies.ml_strategy import MLStrategy
 from strategies.rl_agent import RLAgent
-from strategies.deep_rl import DeepRL
 from strategies.advanced_ml import AdvancedML
 
 from core.results import save_results
 from simulator.workload import WorkloadGenerator
+
+
+def _load_deep_rl_class():
+
+    try:
+        from strategies.deep_rl import DeepRL
+        return DeepRL
+    except Exception:
+        return None
 
 
 # ----------------------
@@ -92,9 +100,11 @@ def run_all():
         run_strategy("ADVANCED", AdvancedML(), workload_trace=shared_workload, steps=steps)
     )
 
-    results.append(
-        run_strategy("DEEP_RL", DeepRL(), workload_trace=shared_workload, steps=steps)
-    )
+    deep_rl_class = _load_deep_rl_class()
+    if deep_rl_class is not None:
+        results.append(
+            run_strategy("DEEP_RL", deep_rl_class(), workload_trace=shared_workload, steps=steps)
+        )
 
     return results
 
@@ -111,8 +121,11 @@ def run_one(name):
         "ML": MLStrategy,
         "RL": RLAgent,
         "ADVANCED": AdvancedML,
-        "DEEP_RL": DeepRL,
     }
+
+    deep_rl_class = _load_deep_rl_class()
+    if deep_rl_class is not None:
+        mapping["DEEP_RL"] = deep_rl_class
 
     if name not in mapping:
         return None

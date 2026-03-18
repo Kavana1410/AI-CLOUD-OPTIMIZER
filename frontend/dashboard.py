@@ -117,7 +117,11 @@ def _get_api_url():
     if "API_URL" in st.secrets:
         return str(st.secrets["API_URL"]).rstrip("/")
 
-    return os.getenv("API_URL", "http://localhost:8000").rstrip("/")
+    api_url = os.getenv("API_URL", "").strip()
+    if not api_url:
+        return None
+
+    return api_url.rstrip("/")
 
 
 def _get_api_key():
@@ -137,6 +141,16 @@ def _with_required_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _run_local_simulation() -> pd.DataFrame:
+
+    try:
+        from main import run_all
+        results = run_all()
+        return _with_required_columns(pd.DataFrame(results))
+    except Exception:
+        return pd.DataFrame(columns=DEFAULT_COLUMNS)
+
+
 @st.cache_data(ttl=5, show_spinner=False)
 def load_results():
 
@@ -147,25 +161,29 @@ def load_results():
     if api_key:
         headers["x-api-key"] = api_key
 
+    if api_url:
+        try:
+            response = requests.get(f"{api_url}/simulate", headers=headers, timeout=6)
+            response.raise_for_status()
+            payload = response.json()
+            api_results = payload.get("results", [])
+
+            df = pd.DataFrame(api_results)
+            if not df.empty:
+                return _with_required_columns(df)
+        except Exception:
+            pass
+
+    # Free/no-backend mode: compute simulation inside Streamlit app.
+    df_local = _run_local_simulation()
+    if not df_local.empty:
+        return df_local
+
     try:
-        response = requests.get(f"{api_url}/simulate", headers=headers, timeout=20)
-        response.raise_for_status()
-        payload = response.json()
-        api_results = payload.get("results", [])
-
-        df = pd.DataFrame(api_results)
-        if df.empty:
-            return pd.DataFrame(columns=DEFAULT_COLUMNS)
-
+        df = pd.read_csv(FILE)
         return _with_required_columns(df)
     except Exception:
-        try:
-            df = pd.read_csv(FILE)
-        except Exception:
-            return pd.DataFrame(columns=DEFAULT_COLUMNS)
-
-    # Backward compatibility for older CSV files.
-    return _with_required_columns(df)
+        return pd.DataFrame(columns=DEFAULT_COLUMNS)
 
 st.set_page_config(
     page_title="AI Cloud Optimizer",
@@ -184,7 +202,7 @@ if "detail" not in st.session_state:
 def show_no_data_message():
 
     st.warning("No data is available yet.")
-    st.info("Start the backend API and check API_URL to load simulation results.")
+    st.info("Set API_URL for backend mode, or use standalone mode to run simulations directly in Streamlit.")
 
 
 # ---------- CSS ----------

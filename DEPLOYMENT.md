@@ -1,59 +1,52 @@
-# Deployment Guide (Streamlit Frontend + Render Backend)
+# Deployment Guide (Free Streamlit-Only First)
 
-## 1) Install dependencies locally
+## 1) Zero-card free deployment (recommended)
 
-Frontend-only (for Streamlit app):
+Use Streamlit Community Cloud only. The app can run simulations locally inside Streamlit and does not require a backend.
 
+### Steps
+
+1. Push this repository to GitHub.
+2. Open Streamlit Community Cloud.
+3. Create a new app from this repo.
+4. Set app file path to `frontend/dashboard.py`.
+5. Add Streamlit secrets:
+
+```
+DASHBOARD_USERNAME = "admin"
+DASHBOARD_PASSWORD = "change_me"
+```
+
+6. Deploy and open the app URL.
+
+### Optional API mode later
+
+If you later add a backend, set:
+
+```
+API_URL = "https://your-backend-url"
+API_KEY = "your_api_key"
+```
+
+Without `API_URL`, the dashboard automatically runs local simulation mode.
+
+## 2) Local run
+
+```
 pip install -r requirements.txt
-
-Backend-only (for Render API parity):
-
-pip install -r requirements-backend.txt
-
-## 2) Run locally
-
-Backend API:
-
-uvicorn api.app:app --host 0.0.0.0 --port 8000
-
-Frontend dashboard:
-
 streamlit run frontend/dashboard.py
+```
 
-## 3) Environment variables
+## 3) Optional backend deployment (not required for free mode)
 
-Backend (Render):
-- FRONTEND_URL=https://<your-streamlit-app>.streamlit.app
-- Optional: ALLOWED_ORIGINS=https://<your-streamlit-app>.streamlit.app,http://localhost:8501
-- Optional: API_KEY=<same-secret-used-by-frontend>
+Backend files are kept for future split deployment:
 
-Frontend (Streamlit Cloud secrets):
-- API_URL=https://<your-render-api>.onrender.com
-- Optional: API_KEY=<same-secret-used-by-backend>
-- DASHBOARD_USERNAME=admin
-- DASHBOARD_PASSWORD=<strong-password>
+- `api/app.py`
+- `render.yaml`
+- `requirements-backend.txt`
 
-## 4) Deploy backend on Render
+## 4) Verify
 
-1. Connect repository in Render.
-2. Use Blueprint from render.yaml or create Web Service manually.
-3. Build command:
-
-pip install -r requirements-backend.txt
-
-4. Start command:
-
-uvicorn api.app:app --host 0.0.0.0 --port $PORT
-
-## 5) Deploy frontend on Streamlit Cloud
-
-1. Create app from this repo.
-2. App file path: frontend/dashboard.py
-3. Add Secrets in Streamlit Cloud with API_URL and dashboard credentials.
-4. If backend API_KEY is enabled, also add API_KEY with same value.
-
-## 6) Verify
-
-1. Backend health: GET / should return status API running.
-2. Frontend loads and charts show data.
-3. Live Monitor updates without local CSV dependency.
+1. Login page appears.
+2. Dashboard loads strategy metrics.
+3. Live Monitor updates without needing API_URL.
