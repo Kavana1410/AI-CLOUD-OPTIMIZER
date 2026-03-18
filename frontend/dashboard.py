@@ -262,9 +262,6 @@ st.set_page_config(
 if not check_login():
     st.stop()
 
-if not PLOTLY_AVAILABLE:
-    st.warning("Plotly is unavailable on this runtime. Using built-in Streamlit charts.")
-
 df = load_results()
 
 if "detail" not in st.session_state:
