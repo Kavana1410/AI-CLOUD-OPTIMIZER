@@ -3,10 +3,18 @@ import pandas as pd
 import numpy as np
 import time
 import os
+import sys
 import requests
+from pathlib import Path
 from datetime import datetime
 
 from login import check_login
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+LOAD_ERROR = ""
 
 try:
     import plotly.express as px
@@ -195,18 +203,20 @@ def _with_required_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _run_local_simulation() -> pd.DataFrame:
+def _run_local_simulation() -> tuple[pd.DataFrame, str | None]:
 
     try:
         from main import run_all
         results = run_all()
-        return _with_required_columns(pd.DataFrame(results))
-    except Exception:
-        return pd.DataFrame(columns=DEFAULT_COLUMNS)
+        return _with_required_columns(pd.DataFrame(results)), None
+    except Exception as exc:
+        return pd.DataFrame(columns=DEFAULT_COLUMNS), str(exc)
 
 
-@st.cache_data(ttl=5, show_spinner=False)
 def load_results():
+
+    global LOAD_ERROR
+    LOAD_ERROR = ""
 
     api_url = _get_api_url()
     api_key = _get_api_key()
@@ -229,14 +239,19 @@ def load_results():
             pass
 
     # Free/no-backend mode: compute simulation inside Streamlit app.
-    df_local = _run_local_simulation()
+    df_local, local_error = _run_local_simulation()
     if not df_local.empty:
         return df_local
+
+    if local_error:
+        LOAD_ERROR = f"Standalone simulation failed: {local_error}"
 
     try:
         df = pd.read_csv(FILE)
         return _with_required_columns(df)
-    except Exception:
+    except Exception as exc:
+        if not LOAD_ERROR:
+            LOAD_ERROR = f"CSV fallback failed: {exc}"
         return pd.DataFrame(columns=DEFAULT_COLUMNS)
 
 st.set_page_config(
@@ -260,6 +275,8 @@ def show_no_data_message():
 
     st.warning("No data is available yet.")
     st.info("Set API_URL for backend mode, or use standalone mode to run simulations directly in Streamlit.")
+    if LOAD_ERROR:
+        st.error(LOAD_ERROR)
 
 
 # ---------- CSS ----------
