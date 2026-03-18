@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import numpy as np
 import time
 import os
@@ -8,6 +7,61 @@ import requests
 from datetime import datetime
 
 from login import check_login
+
+try:
+    import plotly.express as px
+    PLOTLY_AVAILABLE = True
+except ModuleNotFoundError:
+    PLOTLY_AVAILABLE = False
+
+    class _FallbackFigure:
+
+        def __init__(self, df, x, y, kind="bar"):
+            self.df = df
+            self.x = x
+            self.y = y
+            self.kind = kind
+
+        def update_traces(self, *args, **kwargs):
+            return self
+
+        def update_layout(self, *args, **kwargs):
+            return self
+
+        def update_yaxes(self, *args, **kwargs):
+            return self
+
+    class _FallbackPX:
+
+        @staticmethod
+        def bar(df, x, y, title=None, color=None, template=None):
+            return _FallbackFigure(df, x, y, kind="bar")
+
+        @staticmethod
+        def line(df, x, y):
+            return _FallbackFigure(df, x, y, kind="line")
+
+    px = _FallbackPX()
+
+    _orig_plotly_chart = st.plotly_chart
+
+    def _safe_plotly_chart(fig, use_container_width=True, **kwargs):
+
+        if isinstance(fig, _FallbackFigure):
+            if fig.x in fig.df.columns and fig.y in fig.df.columns:
+                chart_data = fig.df[[fig.x, fig.y]].set_index(fig.x)
+            else:
+                chart_data = fig.df
+
+            if fig.kind == "line":
+                st.line_chart(chart_data, use_container_width=use_container_width)
+            else:
+                st.bar_chart(chart_data, use_container_width=use_container_width)
+            return
+
+        return _orig_plotly_chart(fig, use_container_width=use_container_width, **kwargs)
+
+    st.plotly_chart = _safe_plotly_chart
 def neon_bar(df, y, title):
 
     colors = [
@@ -192,6 +246,9 @@ st.set_page_config(
 
 if not check_login():
     st.stop()
+
+if not PLOTLY_AVAILABLE:
+    st.warning("Plotly is unavailable on this runtime. Using built-in Streamlit charts.")
 
 df = load_results()
 
